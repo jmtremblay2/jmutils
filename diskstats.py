@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import subprocess
 import logging
 from typing import Dict
@@ -89,7 +91,7 @@ def parse_smartctl_output(value: str) -> int:
     return None
 
 
-def get_disk_attributes(device_name: str) -> Dict[str, int]:
+def get_smart_attributes(device_name: str) -> Dict[str, int]:
     logger.info(f"Getting disk attributes for {device_name}")
     try:
         # Run smartctl command to get SMART data
@@ -222,22 +224,29 @@ def list_partitions(device_name: str) -> list:
 def all_drive_info():
     disks = get_disk_serials()
     attributes_dict = {}
-    now = str(datetime.datetime.now()) 
+    now = (datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='milliseconds') + 'Z').replace("+00:00","")
     for disk, serial in disks.items():
         disk_state = get_disk_state(disk)
         if disk_state in RUNNING_STATES:
             logger.debug(f"Disk {disk} is running")
-            attributes = get_disk_attributes(disk)
-            attributes["usage"] = [get_disk_usage(part) for part in list_partitions(disk)]
+            smart_attributes = get_smart_attributes(disk)
+            usage = [get_disk_usage(part) for part in list_partitions(disk)]
         else:
             logger.debug(f"Disk {disk} is not running")
-            attributes = {}
+            smart_attributes = None
+            usage = None
             
-        attributes["serial"] = serial
-        attributes["device"] = disk
-        attributes["state"] = disk_state.value
-        attributes["timestamp"] = now
-        
+        attributes = {
+            "@timestamp": now,   
+            "serial": serial,
+            "device": disk,
+            "state": disk_state.value,
+        }
+        if smart_attributes:
+            attributes["smart_attributes"] = smart_attributes
+        if usage:
+            attributes["usage"] = usage
+            
         attributes_dict[disk] = attributes
     return attributes_dict
 
