@@ -8,9 +8,11 @@ import datetime
 import re
 import socket
 from enum import Enum
+import os
 
+DEBUG_LEVEL = os.environ.get("DEBUG_LEVEL", "DEBUG")
 logging.basicConfig(
-    level=logging.DEBUG,  # Set the lowest level you want to see (DEBUG logs everything)
+    level=DEBUG_LEVEL,  # Set the lowest level you want to see (DEBUG logs everything)
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Log format
     handlers=[
         logging.StreamHandler()  # Output logs to the terminal (stdout)
@@ -143,8 +145,12 @@ def get_smart_attributes(device_name: str) -> Dict[str, int]:
                     logger.debug(f"tokens: {tokens}")
                     key = tokens[1]
                     value = tokens[-1]
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        pass
                     logger.debug(f"key: {key}, value: {value}")
-                    metrics[key] = int(value)
+                    metrics[key] = value
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
