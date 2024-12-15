@@ -242,7 +242,6 @@ def list_partitions(disk: str) -> List[str]:
 
 def all_drive_info():
     disks = get_disk_serials()
-    pprint.pprint(disks)
     attributes_dict = {}
     now = (
         datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds")
