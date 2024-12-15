@@ -66,7 +66,7 @@ def parse_smartctl_output(value: str):
         return int(value)
     except ValueError:
         pass
-    
+
     # 173 MaxAvgErase_Ct          0x0000   100   100   000    Old_age   Offline      -       13 (Average 2)
     # 194 Temperature_Celsius     0x0022   033   038   000    Old_age   Always       -       33 (Min/Max 19/38)
     if " (Average" in value:
@@ -80,7 +80,7 @@ def parse_smartctl_output(value: str):
     if re.match(r"^[0-9]+/[0-9]+$", value):
         values = value.split("/")
         return tuple([int(val) for val in values])
-    
+
     # Available Spare Threshold:          10%
     if value.endswith("%"):
         return parse_smartctl_output(value[:-1])
@@ -114,19 +114,24 @@ def parse_smartctl_output(value: str):
 
 def get_smart_attributes(device_name: str) -> Dict[str, int]:
     logger.info(f"Getting disk attributes for {device_name}")
+    device_types = ["auto", "sat"]
     try:
-        # Run smartctl command to get SMART data
-        args = ["sudo", "smartctl", "-A", "--device=auto", device_name]
-        logger.debug(f"Running command: {' '.join(args)}")
-        result = subprocess.run(
-            ["sudo", "smartctl", "-A", "--device=auto", device_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        # Check if the command was successful
+        for device_type in device_types:
+            # Run smartctl command to get SMART data
+            args = ["sudo", "smartctl", "-A", f"--device={device_type}", device_name]
+            logger.debug(f"Running command: {' '.join(args)}")
+            result = subprocess.run(
+                ["sudo", "smartctl", "-A", "--device=auto", device_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if result.returncode == 0:
+                break
+
+        # Check if any device type worked
         if result.returncode != 0:
-            msg = f"Error running smartctl: {result.stderr}"
+            msg = f"Error running smartctl. failed to recognize device type. tried  {device_types}. {result.stderr}"
             logger.error(msg)
             raise IOError(msg)
 
