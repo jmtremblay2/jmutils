@@ -111,7 +111,7 @@ def get_smart_attributes(device_name: str) -> Dict[str, int]:
             raise IOError(msg)
 
         lines = result.stdout.strip().split("\n")
-
+        logger.debug(f"smartctl output: {lines}")
         if "NVMe" in result.stdout:
             # example_output
             # === START OF SMART DATA SECTION ===
