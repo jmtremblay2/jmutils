@@ -2,7 +2,7 @@
 
 import subprocess
 import logging
-from typing import Dict
+from typing import Dict, List
 import pprint
 import datetime
 import re
@@ -10,17 +10,14 @@ import socket
 from enum import Enum
 import os
 
-DEBUG_LEVEL = os.environ.get("DEBUG_LEVEL", "DEBUG")
+DEBUG_LEVEL = os.environ.get("JMUTILS_DEBUG", "DEBUG")
 logging.basicConfig(
     level=DEBUG_LEVEL,  # Set the lowest level you want to see (DEBUG logs everything)
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Log format
-    handlers=[
-        logging.StreamHandler()  # Output logs to the terminal (stdout)
-    ]
+    handlers=[logging.StreamHandler()],  # Output logs to the terminal (stdout)
 )
 
 logger = logging.getLogger(__name__)
-
 
 
 class DiskState(Enum):
@@ -63,13 +60,27 @@ def get_disk_state(device_name: str) -> DiskState:
     return DiskState.UNKNOWN
 
 
-def parse_smartctl_output(value: str) -> int:
+def parse_smartctl_output(value: str):
     # maybe already numeric
     try:
         return int(value)
     except ValueError:
         pass
+    
+    # 173 MaxAvgErase_Ct          0x0000   100   100   000    Old_age   Offline      -       13 (Average 2)
+    # 194 Temperature_Celsius     0x0022   033   038   000    Old_age   Always       -       33 (Min/Max 19/38)
+    if " (Average" in value:
+        pos = value.find(" (Average")
+        return parse_smartctl_output(value[0:pos])
+    if " (Min/Max" in value:
+        pos = value.find(" (Min/Max")
+        return parse_smartctl_output(value[0:pos])
 
+    # 170 Bad_Blk_Ct_Erl/Lat      0x0000   100   100   010    Old_age   Offline      -       0/8
+    if re.match(r"^[0-9]+/[0-9]+$", value):
+        values = value.split("/")
+        return tuple([int(val) for val in values])
+    
     # Available Spare Threshold:          10%
     if value.endswith("%"):
         return parse_smartctl_output(value[:-1])
@@ -98,7 +109,7 @@ def parse_smartctl_output(value: str) -> int:
     if value.startswith("0x"):
         return int(value, 16)
 
-    return None
+    return value
 
 
 def get_smart_attributes(device_name: str) -> Dict[str, int]:
@@ -140,17 +151,13 @@ def get_smart_attributes(device_name: str) -> Dict[str, int]:
             #   10 Spin_Retry_Count        0x0032   100   253   000    Old_age   Always       -       0
             metrics = {}
             for line in lines:
-                if "0x" in line:
-                    tokens = line.split()
+                tokens = line.split()
+                if len(tokens) == 10 and tokens[2].startswith("0x"):
                     logger.debug(f"tokens: {tokens}")
                     key = tokens[1]
                     value = tokens[-1]
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        pass
                     logger.debug(f"key: {key}, value: {value}")
-                    metrics[key] = value
+                    metrics[key] = parse_smartctl_output(value)
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
@@ -221,28 +228,21 @@ def get_disk_usage(partition_name) -> dict:
     return usage
 
 
-def list_partitions(device_name: str) -> list:
-    try:
-        result = subprocess.run(
-            ["lsblk", "-o", "NAME", "-nr", device_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise IOError(f"Error running lsblk: {result.stderr}")
-        partitions = result.stdout.strip().split("\n")
-        return [
-            f"/dev/{partition}"
-            for partition in partitions
-            if partition != device_name.split("/")[-1]
-        ]
-    except Exception as e:
-        raise IOError(f"An error occurred: {str(e)}")
+def list_partitions(disk: str) -> List[str]:
+    partitions = []
+    for part in psutil.disk_partitions(all=False):
+        if (
+            part.device.startswith(disk)
+            and part.fstype not in ["nfs", ""]
+            and not part.device.startswith("/dev/mapper/")
+        ):
+            partitions.append(part.device)
+    return list(set(partitions))
 
 
 def all_drive_info():
     disks = get_disk_serials()
+    pprint.pprint(disks)
     attributes_dict = {}
     now = (
         datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds")
@@ -254,7 +254,9 @@ def all_drive_info():
         if disk_state in RUNNING_STATES:
             logger.debug(f"Disk {disk} is running")
             smart_attributes = get_smart_attributes(disk)
-            usage = [get_disk_usage(part) for part in list_partitions(disk)]
+            partitions = list_partitions(disk)
+            logger.debug(f"for disk {disk}, Partitions: {partitions}")
+            usage = [get_disk_usage(part) for part in partitions]
         else:
             logger.debug(f"Disk {disk} is not running")
             smart_attributes = None
@@ -274,6 +276,10 @@ def all_drive_info():
 
         attributes_dict[disk] = attributes
     return attributes_dict
+
+
+from typing import List
+import psutil
 
 
 if __name__ == "__main__":
