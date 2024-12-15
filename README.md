@@ -6,7 +6,7 @@
 # install virtual environment + requirement
 python3 -m venv diskvenv
 source diskvenv/bin/activate
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
 # Diskstats / cpustats
