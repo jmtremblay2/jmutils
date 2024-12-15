@@ -7,11 +7,18 @@ import pprint
 import datetime
 import re
 import socket
+from enum import Enum
+
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the lowest level you want to see (DEBUG logs everything)
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Log format
+    handlers=[
+        logging.StreamHandler()  # Output logs to the terminal (stdout)
+    ]
+)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-from enum import Enum
 
 
 class DiskState(Enum):
