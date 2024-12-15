@@ -128,12 +128,16 @@ def get_smart_attributes(device_name: str) -> Dict[str, int]:
             )
             if result.returncode == 0:
                 break
+            else:
+                logger.debug(
+                    f"Failed to get smart data for {device_name} using device type {device_type}"
+                )
 
         # Check if any device type worked
         if result.returncode != 0:
             msg = f"Error running smartctl. failed to recognize device type. tried  {device_types}. {result.stderr}"
             logger.error(msg)
-            raise IOError(msg)
+            return None
 
         lines = result.stdout.strip().split("\n")
         logger.debug(f"smartctl output: {lines}")
@@ -258,6 +262,8 @@ def all_drive_info():
         if disk_state in RUNNING_STATES:
             logger.debug(f"Disk {disk} is running")
             smart_attributes = get_smart_attributes(disk)
+            if not smart_attributes:
+                logger.error(f"Failed to get smart attributes for {disk}")
             partitions = list_partitions(disk)
             logger.debug(f"for disk {disk}, Partitions: {partitions}")
             usage = [get_disk_usage(part) for part in partitions]
