@@ -136,9 +136,15 @@ def get_smart_attributes(device_name: str) -> Dict[str, int]:
             # example line:
             #  ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
             #   10 Spin_Retry_Count        0x0032   100   253   000    Old_age   Always       -       0
-            metrics = {
-                line.split()[1]: int(line.split()[-1]) for line in lines if "0x" in line
-            }
+            metrics = {}
+            for line in lines:
+                if "0x" in line:
+                    tokens = line.split()
+                    logger.debug(f"tokens: {tokens}")
+                    key = tokens[1]
+                    value = tokens[-1]
+                    logger.debug(f"key: {key}, value: {value}")
+                    metrics[key] = int(value)
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
