@@ -74,21 +74,21 @@ def parse_smartctl_output(value: str) -> int:
     if match:
         size, unit = match.groups()
         size = float(size)
-        if unit == 'TB':
+        if unit == "TB":
             return int(size * 1024**4)
-        elif unit == 'GB':
+        elif unit == "GB":
             return int(size * 1024**3)
-        elif unit == 'MB':
+        elif unit == "MB":
             return int(size * 1024**2)
-    
+
     # Temperature:                        55 Celsius
     if " Celsius" in value:
         return int(value.split()[0])
-    
+
     # Critical Warning:                   0x00
     if value.startswith("0x"):
         return int(value, 16)
-    
+
     return None
 
 
@@ -225,7 +225,10 @@ def list_partitions(device_name: str) -> list:
 def all_drive_info():
     disks = get_disk_serials()
     attributes_dict = {}
-    now = (datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='milliseconds') + 'Z').replace("+00:00","")
+    now = (
+        datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds")
+        + "Z"
+    ).replace("+00:00", "")
     hostname = socket.gethostname()
     for disk, serial in disks.items():
         disk_state = get_disk_state(disk)
@@ -237,9 +240,9 @@ def all_drive_info():
             logger.debug(f"Disk {disk} is not running")
             smart_attributes = None
             usage = None
-            
+
         attributes = {
-            "@timestamp": now,   
+            "@timestamp": now,
             "serial": serial,
             "device": disk,
             "state": disk_state.value,
@@ -249,11 +252,11 @@ def all_drive_info():
             attributes["smart_attributes"] = smart_attributes
         if usage:
             attributes["usage"] = usage
-            
+
         attributes_dict[disk] = attributes
     return attributes_dict
+
 
 if __name__ == "__main__":
     attributes_dict = all_drive_info()
     pprint.pprint(attributes_dict)
-

@@ -1,0 +1,5 @@
+psutil~=6.1
+requests~=2.32
+gputil~=1.4
+setuptools~=75.6
+wheel~=0.45
