@@ -6,6 +6,7 @@ from typing import Dict
 import pprint
 import datetime
 import re
+import socket
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -225,6 +226,7 @@ def all_drive_info():
     disks = get_disk_serials()
     attributes_dict = {}
     now = (datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='milliseconds') + 'Z').replace("+00:00","")
+    hostname = socket.gethostname()
     for disk, serial in disks.items():
         disk_state = get_disk_state(disk)
         if disk_state in RUNNING_STATES:
@@ -241,6 +243,7 @@ def all_drive_info():
             "serial": serial,
             "device": disk,
             "state": disk_state.value,
+            "hostname": hostname,
         }
         if smart_attributes:
             attributes["smart_attributes"] = smart_attributes
