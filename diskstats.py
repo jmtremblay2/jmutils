@@ -9,8 +9,10 @@ import re
 import socket
 from enum import Enum
 import os
+import sys
+import json
 
-DEBUG_LEVEL = os.environ.get("JMUTILS_DEBUG", "DEBUG")
+DEBUG_LEVEL = os.environ.get("JMUTILS_DEBUG", "ERROR")
 logging.basicConfig(
     level=DEBUG_LEVEL,  # Set the lowest level you want to see (DEBUG logs everything)
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Log format
@@ -293,5 +295,21 @@ import psutil
 
 
 if __name__ == "__main__":
+    argv = sys.argv
+    # todo: CLI?
+    quick = False
+    for arg in argv[1:]:
+        if arg == "quick":
+            quick = True
     attributes_dict = all_drive_info()
-    pprint.pprint(attributes_dict)
+    if quick:
+        for disk in attributes_dict:
+            att = attributes_dict[disk]["smart_attributes"]
+            attributes_dict[disk] = {
+                "Reallocated_Sector_Ct": att.get("Reallocated_Sector_Ct", None),
+                "Current_Pending_Sector": att.get("Current_Pending_Sector", None),
+                "Offline_Uncorrectable": att.get("Offline_Uncorrectable", None),
+            }
+        print(json.dumps(attributes_dict))
+    else:
+        pprint.pprint(attributes_dict)
